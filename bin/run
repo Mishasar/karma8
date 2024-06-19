@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# подключаем инициализацию
+PROGRAM="$0"
+DIR=$(dirname "$(realpath "${PROGRAM}")")
+source "${DIR}/.init.sh"
+
+set -e
+
+if ! type "docker" > /dev/null; then
+  echo "Please, install docker"
+  exit 1
+fi
+
+if ! type "docker-compose" > /dev/null; then
+  echo "Please, install docker-compose"
+  exit 1
+fi
+
+source $PROJECT_ROOT/bin/init-secrets
+
+docker-compose -f $PROJECT_ROOT/infra/docker-compose.yml up -d --force-recreate
+
+# Инициализация mysql
+sleep 20
+
+# Миграции
+echo "Run migrations"
+docker exec -it karma_mysql bash -c "mysql -uroot -p$KARMA_MYSQL_ROOT_PASSWORD < /migrations/tables.sql"
+docker exec -it karma_mysql bash -c "mysql -uroot -p$KARMA_MYSQL_ROOT_PASSWORD < /migrations/test_data.sql"
+
+# Запускаем крон вручную
+echo "Run cron task creator"
+docker exec -it karma_php sh -c "php ./backend/cron/cron_task_creator.php"
+
+source $PROJECT_ROOT/bin/show-logs

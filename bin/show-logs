@@ -1,0 +1,5 @@
+#!/bin/sh
+
+set -e
+
+docker exec -it karma_php sh -c "tail -f /var/log/backend/log.txt"

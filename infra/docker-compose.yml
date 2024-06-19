@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  mysql:
+    build:
+      context: ../
+      dockerfile: ./infra/mysql/Dockerfile
+    container_name: karma_mysql
+    environment:
+      MYSQL_DATABASE: "karma"
+      MYSQL_PASSWORD_FILE: /run/secrets/karma_mysql_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/karma_mysql_root_password
+      MYSQL_USER_FILE: /run/secrets/karma_mysql_user
+    networks:
+      - internal
+    platform: linux/amd64
+    secrets:
+      - karma_mysql_password
+      - karma_mysql_root_password
+      - karma_mysql_user
+    volumes:
+      - mysql:/var/lib/mysql
+      - ../migrations/tables.sql:/migrations/tables.sql
+      - ../migrations/test_data.sql:/migrations/test_data.sql
+    ports:
+      - "3306:3306"
+
+  php:
+    build:
+      context: ../
+      dockerfile: ./infra/php/Dockerfile
+    container_name: karma_php
+    depends_on:
+      - mysql
+    networks:
+      - internal
+    secrets:
+      - karma_mysql_password
+      - karma_mysql_user
+    volumes:
+      - ./../code:/home/dockeruser/backend
+      - ./php/php.ini:/usr/local/etc/php/php.ini
+
+networks:
+  internal:
+
+secrets:
+  karma_mysql_password:
+    file: ./.secrets/karma_mysql_password
+  karma_mysql_root_password:
+    file: ./.secrets/karma_mysql_root_password
+  karma_mysql_user:
+    file: ./.secrets/karma_mysql_user
+
+volumes:
+  mysql:
